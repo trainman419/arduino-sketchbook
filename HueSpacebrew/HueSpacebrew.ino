@@ -53,14 +53,14 @@ http://www.circuitsathome.com/mcu/reading-rotary-encoder-on-arduino
 SpacebrewYun sb = SpacebrewYun("spacebrewYun Range", "Range sender and receiver");
 
 //These are the pins that will talk to the shift register through SPI
-#define SDI    2    //Data
-#define CLK    3    //Clock
-#define LE     4    //Latch
+#define SDI    5    //Data
+#define CLK    6    //Clock
+#define LE     7    //Latch
 
 //These are the rotary encoder pins A, B, and switch
-#define ENC_A    8
-#define ENC_B    9
-#define ENC_SW   10
+#define ENC_A    2
+#define ENC_B    3
+#define ENC_SW   4
 
 /*This is a 2 dimensional array with 3 LED sequences.  The outer array is the sequence; 
   the inner arrays are the values to output at each step of each sequence.  The output values
