@@ -62,6 +62,9 @@ SpacebrewYun sb = SpacebrewYun("spacebrewYun Range", "Range sender and receiver"
 #define ENC_B    3
 #define ENC_SW   4
 
+// This is the pin that the relay contol circuit is hooked up to
+#define RELAY 8
+
 /*This is a 2 dimensional array with 3 LED sequences.  The outer array is the sequence; 
   the inner arrays are the values to output at each step of each sequence.  The output values
   are 16 bit hex values (hex math is actually easier here!).  An LED will be on if its 
@@ -71,6 +74,8 @@ SpacebrewYun sb = SpacebrewYun("spacebrewYun Range", "Range sender and receiver"
   The data type must be 'unsigned int' if the sequence uses the bottom LED since it's value is 0x8000 (out of range for signed int).
 */
 const unsigned int sequence[16] = {0x0,0x1,0x3,0x7,0xf,0x1f,0x3f,0x7f,0xff,0x1ff,0x3ff,0x7ff,0xfff,0x1fff,0x3fff,0x7fff};
+
+long reset_start = 0;
 
 void setup()
 {
@@ -85,6 +90,8 @@ void setup()
   digitalWrite(ENC_B, HIGH);
   pinMode(ENC_SW, INPUT);
   digitalWrite(ENC_SW, HIGH);
+  pinMode(RELAY, OUTPUT);
+  digitalWrite(RELAY, LOW);
     
   // start the serial port
   Serial.begin(57600);
@@ -106,12 +113,15 @@ void setup()
   // connect to cloud spacebrew server at "sandbox.spacebrew.cc"
   sb.connect("sandbox.spacebrew.cc");
   
-  update_disp(0); // initialize display to 0
+  update_disp(0xFFFF); // initialize display to 0
   
-  delay(2000);
+  delay(1000);
+  
+  update_disp(0);
 
   //Set serial rate, prompt for desired sequence
   Serial.println("Lightswitch Ready!");
+  reset_start = millis();
 }
 
 // Global variables
@@ -159,6 +169,8 @@ void loop()
   //Send the LED output to the shift register
   disp = sequence[disp_counter / 4];
   
+  long now = millis();
+  
   //If the encoder switch is pushed, this will turn on the bottom LED.  The bottom LED is turned
   //on by 'OR-ing' the current display with 0x8000 (1000000000000000 in binary)
   byte sw = !digitalRead(ENC_SW);
@@ -167,6 +179,15 @@ void loop()
     disp |= 0x8000;
   } else {
     disp &= ~0x8000;
+    reset_start = now;
+  }
+  
+  if( now - reset_start > 3000 ) {
+    // Turn the relay off and back on to reset the lights
+    digitalWrite(RELAY, HIGH);
+    delay(1000);
+    digitalWrite(RELAY, LOW);
+    reset_start = millis();
   }
   
   // update the display if needed
