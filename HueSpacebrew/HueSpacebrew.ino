@@ -109,7 +109,6 @@ void setup()
 
   // configure the spacebrew publisher and subscriber
   sb.addPublish("knob", "range");
-  sb.addPublish("sleep", "range");
   sb.addPublish("button", "boolean");
   
   // subscribe to input
@@ -138,7 +137,7 @@ int incomingByte = 0;   //Serial input to select LED output sequence
 volatile int8_t knob_counter = 0;
 int8_t disp_counter = 0;
 
-#define LOOP_RATE 10
+#define LOOP_RATE 25
 #define SLEEP_TIME (1000 / LOOP_RATE)
 
 void loop()
@@ -156,16 +155,16 @@ void loop()
     Serial.println(counter, DEC);
     // connected to spacebrew then send a new value whenever the pot value changes
     if ( sb.connected() ) {
-      sb.send("out", counter * 17);
+      sb.send("knob", counter * 17);
     }
     last_counter = counter;
   }
-  
+    
   // monitor spacebrew connection for new data
   sb.monitor();
   
   disp_counter = counter;
-
+  
   //Send the LED output to the shift register
   disp = sequence[disp_counter / 4];
   
@@ -201,9 +200,11 @@ void loop()
     disp_old = disp;
     update_disp(disp);
   }
-  
+
   now = millis();
-  if( now - start < SLEEP_TIME ) {
+  // now - start seems to range between 4 and 20
+  // values in the 100-150 range when sending updates
+  if( (now - start) < SLEEP_TIME ) {
     delay(SLEEP_TIME - (now - start));
   }
 }
