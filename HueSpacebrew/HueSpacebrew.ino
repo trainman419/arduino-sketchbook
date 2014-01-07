@@ -50,7 +50,7 @@ http://www.circuitsathome.com/mcu/reading-rotary-encoder-on-arduino
 #include <SpacebrewYun.h>
 
 // create a variable of type SpacebrewYun and initialize it with the constructor
-SpacebrewYun sb = SpacebrewYun("spacebrewYun Range", "Range sender and receiver");
+SpacebrewYun sb = SpacebrewYun("Spacebrew Knob", "Spacebrew-attached encoder knob");
 
 //These are the pins that will talk to the shift register through SPI
 #define SDI    5    //Data
@@ -59,7 +59,9 @@ SpacebrewYun sb = SpacebrewYun("spacebrewYun Range", "Range sender and receiver"
 
 //These are the rotary encoder pins A, B, and switch
 #define ENC_A    2
+#define ENC_A_INT 1
 #define ENC_B    3
+#define ENC_B_INT 0
 #define ENC_SW   4
 
 // This is the pin that the relay contol circuit is hooked up to
@@ -86,8 +88,11 @@ void setup()
   //Set encoder pins to input, turn internal pull-ups on
   pinMode(ENC_A, INPUT);
   digitalWrite(ENC_A, HIGH);
+  attachInterrupt(ENC_A_INT, update_counter, CHANGE);
   pinMode(ENC_B, INPUT);
   digitalWrite(ENC_B, HIGH);
+  attachInterrupt(ENC_B_INT, update_counter, CHANGE);
+  
   pinMode(ENC_SW, INPUT);
   digitalWrite(ENC_SW, HIGH);
   pinMode(RELAY, OUTPUT);
@@ -103,7 +108,9 @@ void setup()
   sb.verbose(true);
 
   // configure the spacebrew publisher and subscriber
-  sb.addPublish("out", "range");
+  sb.addPublish("knob", "range");
+  sb.addPublish("sleep", "range");
+  sb.addPublish("button", "boolean");
   
   // subscribe to input
   sb.addSubscribe("in", "range");
@@ -128,43 +135,36 @@ void setup()
 int scaledCounter = 0;  //The LED output is based on a scaled veryson of the rotary encoder counter
 int incomingByte = 0;   //Serial input to select LED output sequence
 
-int8_t knob_counter = 0;
+volatile int8_t knob_counter = 0;
 int8_t disp_counter = 0;
+
+#define LOOP_RATE 10
+#define SLEEP_TIME (1000 / LOOP_RATE)
 
 void loop()
 { 
   //Local Variables
+  static int8_t last_counter = 0;
   static uint16_t disp = 0;
   static uint16_t disp_old = 0;
-  int8_t tmpdata;
+  int8_t counter = knob_counter;
+  long start = millis();
   
-  knob_counter = disp_counter;
-
-  //Call read_encoder() function
-  tmpdata = read_encoder();
-
-  //if the encoder has moved
-  if(tmpdata) {
+  if( counter != last_counter ) {
     //Print out the counter value
     Serial.print("Counter value: ");
-    Serial.println(knob_counter, DEC);
-    //Set the new counter value of the encoder
-    knob_counter += tmpdata;
-    
-    // enforce limits on counter
-    if( knob_counter < 0  ) knob_counter = 0;
-    if( knob_counter > 60 ) knob_counter = 60;
-
+    Serial.println(counter, DEC);
     // connected to spacebrew then send a new value whenever the pot value changes
     if ( sb.connected() ) {
-      sb.send("out", knob_counter * 17);
+      sb.send("out", counter * 17);
     }
+    last_counter = counter;
   }
   
   // monitor spacebrew connection for new data
   sb.monitor();
   
-  disp_counter = knob_counter;
+  disp_counter = counter;
 
   //Send the LED output to the shift register
   disp = sequence[disp_counter / 4];
@@ -173,6 +173,7 @@ void loop()
   
   //If the encoder switch is pushed, this will turn on the bottom LED.  The bottom LED is turned
   //on by 'OR-ing' the current display with 0x8000 (1000000000000000 in binary)
+  static byte sw_old = false;
   byte sw = !digitalRead(ENC_SW);
   if (sw)
   {
@@ -180,6 +181,11 @@ void loop()
   } else {
     disp &= ~0x8000;
     reset_start = now;
+  }
+  
+  if( sw != sw_old ) {
+    sb.send("button", sw);
+    sw_old = sw;
   }
   
   if( now - reset_start > 3000 ) {
@@ -194,6 +200,11 @@ void loop()
   if( disp != disp_old ) {
     disp_old = disp;
     update_disp(disp);
+  }
+  
+  now = millis();
+  if( now - start < SLEEP_TIME ) {
+    delay(SLEEP_TIME - (now - start));
   }
 }
 
@@ -226,6 +237,14 @@ int8_t read_encoder()
   old_AB <<= 2;                   //remember previous state
   old_AB |= raw_enc();  //add current state
   return ( enc_states[( old_AB & 0x0f )]);
+}
+
+void update_counter() {
+  int8_t change = read_encoder();
+  knob_counter += change;
+  // enforce limits on counter
+  if( knob_counter < 0  ) knob_counter = 0;
+  if( knob_counter > 60 ) knob_counter = 60;
 }
 
 void handleRange(String route, int value) {
