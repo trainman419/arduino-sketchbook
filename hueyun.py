@@ -6,6 +6,7 @@ import argparse
 import json
 import urllib
 import sys
+import select
 
 from time import sleep
 import phue
@@ -84,14 +85,17 @@ def main():
 
     args = parser.parse_args()
 
+    log = open('/tmp/hueyun.log', 'w')
+
     if args.bridge is None:
         info = urllib.urlopen('http://www.meethue.com/api/nupnp').read()
         info = json.loads(info)
         if len(info) > 0:
             args.bridge = info[0][u'internalipaddress']
         else:
-            print("ERROR: Could not auto-detect Hue bridge IP")
-            print(" Please specify --bridge manually")
+            log.write("ERROR: Could not auto-detect Hue bridge IP\n")
+            log.write(" Please specify --bridge manually\n")
+            log.close()
             sys.exit(1)
 
     bridge = None
@@ -102,40 +106,49 @@ def main():
             sleep(5)
 
 
-
     lights = []
 
-    print("Lights:")
+    log.write("Lights:\n")
     for name, light in bridge.get_light_objects('name').iteritems():
         if name in args.lights:
-            print(" - Found %s"%(name))
+            log.write(" - Found %s\n"%(name))
             lights.append(HueBulb(name, light))
+    log.flush()
 
     try:
         while True:
-            i = raw_input()
-            if i == "T":
-                # TODO: toggle
-                normal = True
-                for light in lights:
-                    if not light.is_normal():
-                        normal = False
-                for light in lights:
-                    if normal:
-                        light.off()
-                    else:
-                        light.reset()
-            else:
-                try:
-                    v = int(i)
-                    if v < 0:
-                        v = 0
-                    if v > 255:
-                        v = 255
+            rlist, wlist, elist = select.select([sys.stdin], [], [], 0)
+            i = None
+            while rlist:
+                i = raw_input()
+                rlist, wlist, elist = select.select([sys.stdin], [], [], 0)
+            if i is not None:
+                if i == "T":
+                    log.write("Toggle\n")
+                    log.flush()
+                    # toggle
+                    normal = True
                     for light in lights:
-                        light.brightness(v)
-                except:
-                    pass
+                        if not light.is_normal():
+                            normal = False
+                    for light in lights:
+                        if normal:
+                            light.off()
+                        else:
+                            light.reset()
+                else:
+                    try:
+                        v = int(i)
+                        if v < 0:
+                            v = 0
+                        if v > 255:
+                            v = 255
+                        log.write("%d\n"%(v))
+                        log.flush()
+                        for light in lights:
+                            light.brightness(v)
+                    except:
+                        pass
             for light in lights:
                 light.poll()
             # chill out man
@@ -143,6 +156,8 @@ def main():
     except KeyboardInterrupt:
         # try to exit quietly
         pass
+    finally:
+        log.close()
 
 
 if __name__ == '__main__':
