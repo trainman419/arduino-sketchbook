@@ -12,6 +12,11 @@ from time import sleep
 import phue
 from phue import Bridge
 
+out = open('/tmp/hueyun.log', 'w')
+
+def log(s):
+    out.write(s)
+    out.flush()
 
 class HueBulb(object):
     def __init__(self, name, light):
@@ -36,6 +41,7 @@ class HueBulb(object):
         if b != self._old_brightness:
             # brightness changed, send update
             print("%d"%(b))
+            log("Sending %d\n" %(repr(b)))
             self._old_brightness = b
 
     def brightness(self, b):
@@ -85,7 +91,6 @@ def main():
 
     args = parser.parse_args()
 
-    log = open('/tmp/hueyun.log', 'w')
 
     if args.bridge is None:
         info = urllib.urlopen('http://www.meethue.com/api/nupnp').read()
@@ -93,9 +98,9 @@ def main():
         if len(info) > 0:
             args.bridge = info[0][u'internalipaddress']
         else:
-            log.write("ERROR: Could not auto-detect Hue bridge IP\n")
-            log.write(" Please specify --bridge manually\n")
-            log.close()
+            log("ERROR: Could not auto-detect Hue bridge IP\n")
+            log(" Please specify --bridge manually\n")
+            out.close()
             sys.exit(1)
 
     bridge = None
@@ -108,12 +113,11 @@ def main():
 
     lights = []
 
-    log.write("Lights:\n")
+    log("Lights:\n")
     for name, light in bridge.get_light_objects('name').iteritems():
         if name in args.lights:
-            log.write(" - Found %s\n"%(name))
+            log(" - Found %s\n"%(name))
             lights.append(HueBulb(name, light))
-    log.flush()
 
     try:
         while True:
@@ -122,13 +126,12 @@ def main():
             while rlist:
                 i = raw_input()
                 i = i.strip()
-                log.write("Got %s\n" % (repr(i)) )
+                log("Got %s\n" % (repr(i)) )
                 rlist, wlist, elist = select.select([sys.stdin], [], [], 0)
             if i is not None:
-                log.write("Processing %s\n" % (repr(i)) )
+                log("Processing %s\n" % (repr(i)) )
                 if i == "T":
-                    log.write("Toggle\n")
-                    log.flush()
+                    log("Toggle\n")
                     # toggle
                     normal = True
                     for light in lights:
@@ -146,8 +149,7 @@ def main():
                             v = 0
                         if v > 255:
                             v = 255
-                        log.write("%d\n"%(v))
-                        log.flush()
+                        log("%d\n"%(v))
                         for light in lights:
                             light.brightness(v)
                     except:
@@ -160,7 +162,7 @@ def main():
         # try to exit quietly
         pass
     finally:
-        log.close()
+        out.close()
 
 
 if __name__ == '__main__':
