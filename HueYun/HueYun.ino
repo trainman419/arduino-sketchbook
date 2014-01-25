@@ -87,6 +87,7 @@ void loop() {
   static char out[5];
   static long last_input = 0;
   static int16_t last_output = 0;
+  static int16_t input_threshold = 250;
   
   if(!p.running()) {
     // if our process has died, restart it
@@ -102,16 +103,20 @@ void loop() {
   int latest = counter;
   if( latest != last_counter ) {
     last_counter = latest;
+    input_threshold = (now - last_input) * 4;
+    if( input_threshold < 250 ) input_threshold = 250;
+    if( input_threshold > 1000 ) input_threshold = 1000;
     last_input = now;
   }
   
   // coalesce output
   if( last_output != latest ) {
-    if( now - last_input > 250 ) {
+    if( now - last_input > input_threshold ) {
       // this updates the lights
-      p.print(latest * 4);
+      p.print(latest);
       p.print("\r\n");
-      last_output = latest;    
+      last_output = latest;
+      input_threshold = 250;
     }
   }
 
@@ -145,8 +150,9 @@ void loop() {
     char b = p.read();
     if(b == '\n' || b == '\r') {
       if( input_count > 0 ) {
-        latest = input / 4;
-        if(latest > 60) latest = 60;
+        latest = input;
+        last_output = latest;
+        if(latest > 255) latest = 255;
         if(latest < 0) latest = 0;      
         counter = latest;
         input = 0;
@@ -162,7 +168,7 @@ void loop() {
   
   uint16_t disp = 0;
   // scale to 0-15
-  disp = sequence[latest / 4];
+  disp = sequence[latest / 16];
 
   if (sw)
     disp |= 0x8000;
@@ -206,8 +212,8 @@ int8_t read_encoder()
 
 void update_counter() {
   int8_t change = read_encoder();
-  counter += change;
+  counter += (change * 4);
   // enforce limits on counter
-  if( counter < 0  ) counter = 0;
-  if( counter > 60 ) counter = 60;
+  if( counter < 0   ) counter = 0;
+  if( counter > 255 ) counter = 255;
 }
