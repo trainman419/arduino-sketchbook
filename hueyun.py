@@ -121,8 +121,11 @@ def main():
             i = None
             while rlist:
                 i = raw_input()
+                i = i.strip()
+                log.write("Got %s\n" % (repr(i)) )
                 rlist, wlist, elist = select.select([sys.stdin], [], [], 0)
             if i is not None:
+                log.write("Processing %s\n" % (repr(i)) )
                 if i == "T":
                     log.write("Toggle\n")
                     log.flush()
