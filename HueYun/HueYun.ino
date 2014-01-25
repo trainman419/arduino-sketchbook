@@ -76,16 +76,17 @@ void setup() {
   reset_start = millis();
 }
 
-volatile int8_t counter = 0;
+volatile int16_t counter = 0;
 
 #define LOOP_RATE 25
 #define SLEEP_TIME (1000 / LOOP_RATE)
 
 void loop() {
-  static int8_t last_counter = 0;
+  static int16_t last_counter = 0;
   static uint16_t disp_old = 0;
   static char out[5];
-  static char in[16];
+  static long last_input = 0;
+  static int16_t last_output = 0;
   
   if(!p.running()) {
     // if our process has died, restart it
@@ -97,17 +98,25 @@ void loop() {
   }
   
   // Read command output. runShellCommand() should have passed "Signal: xx&":
+  long now = millis();
   int latest = counter;
   if( latest != last_counter ) {
-    // TODO: print int latest to p
-    // this updates the lights
-    p.println(latest * 4);
     last_counter = latest;
+    last_input = now;
+  }
+  
+  // coalesce output
+  if( last_output != latest ) {
+    if( now - last_input > 250 ) {
+      // this updates the lights
+      p.print(latest * 4);
+      p.print("\r\n");
+      last_output = latest;    
+    }
   }
 
   //If the encoder switch is pushed, this will turn on the bottom LED.  The bottom LED is turned
   //on by 'OR-ing' the current display with 0x8000 (1000000000000000 in binary)
-  long now = millis();
   static byte sw_old = false;
   byte sw = !digitalRead(ENC_SW);
 
@@ -117,7 +126,8 @@ void loop() {
   if( sw != sw_old ) {
     // on button release, send "T" to toggle lights
     if( sw_old )
-      p.println("T");
+      // try to send enough data to fill up the input buffer
+      p.print("T\r\n");
     sw_old = sw;
   }
   
@@ -129,24 +139,26 @@ void loop() {
     reset_start = millis();
   }
 
-
-  int i=0;
+  static int16_t input = 0;
+  static int8_t input_count = 0;
   while (p.available()) {
-    in[i] = p.read();
-    if(in[i] == '\n') {
-      if( sscanf(in, "%d", &latest) ) {
-        latest /= 4;
+    char b = p.read();
+    if(b == '\n' || b == '\r') {
+      if( input_count > 0 ) {
+        latest = input / 4;
         if(latest > 60) latest = 60;
-        if(latest < 0) latest = 0;
+        if(latest < 0) latest = 0;      
+        counter = latest;
+        input = 0;
+        input_count = 0;
       }
-      i=0;
-    } else {
-      i++;
+    } else if(isdigit(b)) {
+      input = input * 10;
+      input += (b - '0');
+      input_count++;
     }
-    if( i >= sizeof(in) ) i=0;
   }
   
-  counter = latest;
   
   uint16_t disp = 0;
   // scale to 0-15

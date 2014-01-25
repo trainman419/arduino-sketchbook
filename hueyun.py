@@ -13,6 +13,7 @@ import phue
 from phue import Bridge
 
 out = open('/tmp/hueyun.log', 'w')
+last = None
 
 def log(s):
     out.write(s)
@@ -39,9 +40,13 @@ class HueBulb(object):
             else:
                 return
         if b != self._old_brightness:
+            global last
             # brightness changed, send update
-            print("%d"%(b))
-            log("Sending %s\n" %(repr(b)))
+            if b != last:
+                print("%d"%(b))
+                sys.stdout.flush()
+                log("Sending %s\n" %(repr(b)))
+                last = b
             self._old_brightness = b
 
     def brightness(self, b):
