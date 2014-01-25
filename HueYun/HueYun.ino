@@ -85,13 +85,15 @@ void loop() {
   static int8_t last_counter = 0;
   static uint16_t disp_old = 0;
   static char out[5];
+  static char in[16];
   
   if(!p.running()) {
     // if our process has died, restart it
     p.begin("/root/hueyun.py");
-    p.addParameter("'Left of couch 1'");
-    p.addParameter("'Right of couch 1'");
+    p.addParameter("Left of couch 1");
+    p.addParameter("Right of couch 1");
     p.runAsynchronously();
+    p.setTimeout(50);
   }
   
   // Read command output. runShellCommand() should have passed "Signal: xx&":
@@ -99,11 +101,7 @@ void loop() {
   if( latest != last_counter ) {
     // TODO: print int latest to p
     // this updates the lights
-    /*
-    snprintf(out, 5, "%d\n", latest);
-    for( int i=0; i<strlen(out); i++ )
-      p.write(out[i]);
-      */
+    p.println(latest * 4);
     last_counter = latest;
   }
 
@@ -118,10 +116,8 @@ void loop() {
   
   if( sw != sw_old ) {
     // on button release, send "T" to toggle lights
-    if( sw_old ) {
-      p.write('T');
-      p.write('\n');
-    }
+    if( sw_old )
+      p.println("T");
     sw_old = sw;
   }
   
@@ -133,11 +129,22 @@ void loop() {
     reset_start = millis();
   }
 
-  /*
+
+  int i=0;
   while (p.available()) {
-    latest = p.parseInt();			// look for an integer
+    in[i] = p.read();
+    if(in[i] == '\n') {
+      if( sscanf(in, "%d", &latest) ) {
+        latest /= 4;
+        if(latest > 60) latest = 60;
+        if(latest < 0) latest = 0;
+      }
+      i=0;
+    } else {
+      i++;
+    }
+    if( i >= sizeof(in) ) i=0;
   }
-  */
   
   counter = latest;
   
