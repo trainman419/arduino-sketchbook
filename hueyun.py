@@ -41,7 +41,7 @@ class HueBulb(object):
         if b != self._old_brightness:
             # brightness changed, send update
             print("%d"%(b))
-            log("Sending %d\n" %(repr(b)))
+            log("Sending %s\n" %(repr(b)))
             self._old_brightness = b
 
     def brightness(self, b):
