@@ -1,3 +1,4 @@
+#include <Bounce2.h>
 #include <Wire.h>
 #include <MAX17043.h>
 
@@ -6,19 +7,24 @@ const int right[] = {4, 7, 2, 8};
 const int yellow_l = 10;
 const int yellow_r = 11;
 
-const int up_btn = A0;
-const int down_btn = 12;
+const int up_pin = A0;
+const int down_pin = 12;
 
 byte i=0;
 byte dir=0;
 
 // modes
+#define MIN_MODE 0
 #define COUNT 0
 #define GAUGE 1
 #define TWINKLE 2
+#define MAX_MODE 2
 int mode = COUNT;
 
 MAX17043 fuelGauge;
+
+Bounce up_btn;
+Bounce down_btn;
 
 void left_bar(uint16_t value) {
   int j=0;
@@ -50,16 +56,43 @@ void setup() {
   
   pinMode(yellow_r, OUTPUT);
   
-  pinMode(up_btn, INPUT);
-  digitalWrite(up_btn, HIGH); // enable pull-up
+  pinMode(up_pin, INPUT);
+  digitalWrite(up_pin, HIGH); // enable pull-up
+  up_btn.attach(up_pin);
+  up_btn.interval(20);
   
-  pinMode(down_btn, INPUT);
-  digitalWrite(down_btn, HIGH); // enable pull-up
+  pinMode(down_pin, INPUT);
+  digitalWrite(down_pin, HIGH); // enable pull-up
+  down_btn.attach(down_pin);
+  down_btn.interval(20);
   
   fuelGauge.begin();
 
   Serial.begin(9600);
+  
+  // startup sequence - like a light blinking on
+  // ..*. .... .*.. ...* ..*. .... **.* ....
+  uint32_t states = 0b00001011000001001000001000000100;
+  for(int i=0; i<32; i++ ) {
+    if( states & 0b1 ) {
+      left_bar(1024);
+      right_bar(4);
+      analogWrite(yellow_l, 255);
+      analogWrite(yellow_r, 255);
+    } else {
+      left_bar(0);
+      right_bar(0);
+      analogWrite(yellow_l, 0);
+      analogWrite(yellow_r, 0);
+    }
+    delay(30);
+    states >>= 1;
+  }
 }
+
+int left_rand = 0;
+int right_rand = 0;
+long rand_millis = 0;
 
 void loop() {
   // put your main code here, to run repeatedly:
@@ -81,14 +114,24 @@ void loop() {
       right_bar(i/63);
       break;
     case TWINKLE:
-      left_bar(random(1024));
-      right_bar(random(5));
-      delay(240);
+      if( rand_millis < millis() ) {
+        int r_range = random(10) > 7 ? 5 : 3;
+        left_rand = constrain(left_rand + random(512) - 256, 0, 1024);
+        right_rand = constrain(right_rand + random(r_range) - 1, 0, 4);
+        left_bar(left_rand);
+        right_bar(right_rand);
+        rand_millis += 250;
+      }
       break;
   }
   
-  int up = !digitalRead(up_btn);
-  int down = !digitalRead(down_btn);
+  if( up_btn.update() && !up_btn.read() ) {
+    mode = min(mode+1, MAX_MODE);
+  }
+
+  if( down_btn.update() && !down_btn.read() ) {
+    mode = max(mode-1, MIN_MODE);
+  }
   
   i += dir;
   if( i == 255 ) dir = -1;
