@@ -25,7 +25,7 @@ void loop() {
   digitalWrite(bubbles, HIGH);
 
   // wait for 60 seconds
-  for(i=0; i<60; i++) {
+  for(i=0; i<45; i++) {
     delay(1000);
   }
 
@@ -34,7 +34,7 @@ void loop() {
   digitalWrite(bubbles, LOW);
   
   // wait for 240 seconds (4 minutes)
-  for(i=0; i<240; i++) {
+  for(i=0; i<150; i++) {
     delay(1000);
   }
 }
