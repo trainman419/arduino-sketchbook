@@ -20,6 +20,18 @@ void RightOut(int8_t pwr) {
   analogWrite(11, abs(pwr)*2);
 }
 
+int vel = 0;  // (-50 bwd, +50 fwd)
+int turn = 0; // (-50 left, +50 right)
+
+void Mix() {
+  int l = 2*vel + turn;
+  int r = 2*vel - turn;
+  l = min(max(l, -120), 120);
+  r = min(max(r, -120), 120);
+  LeftOut(l);
+  RightOut(r);
+}
+
 Servo weapon;
 
 void Weapon(int pwr) {
@@ -46,7 +58,7 @@ void setup() {
   pinMode(13, OUTPUT);
   digitalWrite(13, HIGH);
   
-  Serial.begin(9600);
+  Serial.begin(57600);
   
   // weapon setup
   weapon.attach(3);
@@ -75,23 +87,46 @@ void setup() {
 
 int i = 60;
 
+char mode = 0;
+int value = 0;
+
 void loop() {
   // put your main code here, to run repeatedly:
 
-  // TODO: read joystick data
+  // read joystick data
+  // E: (99-0) (weapon speed)
+  // B: (150-250) (left to right)
+  // A: (150-250) (bwd to fwd)
+  while(Serial.available()) {
+    int b = Serial.read();
+    if( 'A' <= b && 'X' >= b ) {
+      switch(mode) {
+        case 'A':
+          vel = (value - 205);
+          break;
+        case 'B':
+          turn = (value - 200);
+          Mix();
+          break;
+        case 'E':
+          Weapon(100 - value);
+          break;
+      }
+          
+      // mode character
+      mode = b;
+      value = 0;
+    } else if('0' <= b && '9' >= b) {
+      value *= 10;
+      value += (b - '0');
+    }
+    last_command = millis();
+  }
+  
   // timeout
-  /*
   if((millis() - last_command) > 500) {
     LeftOut(0);
     RightOut(0);
     Weapon(0);
   }
-  */
-  //Weapon(i);
-  i += 5;
-  if(i > 80)  i = 0;
-  delay(500);
-  digitalWrite(13, LOW);
-  delay(500);
-  digitalWrite(13, HIGH);
 }

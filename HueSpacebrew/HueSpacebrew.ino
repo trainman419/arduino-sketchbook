@@ -159,11 +159,14 @@ void loop()
     }
     last_counter = counter;
   }
+  
+  disp_counter = counter;
     
   // monitor spacebrew connection for new data
   sb.monitor();
-  
-  disp_counter = counter;
+
+  knob_counter = disp_counter;
+  last_counter = disp_counter; // don't transmit an update if we got our current value remotely
   
   //Send the LED output to the shift register
   disp = sequence[disp_counter / 4];
