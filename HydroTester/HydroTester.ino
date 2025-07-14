@@ -100,7 +100,7 @@ void menuLine(MenuSelection m, bool selected, bool active, bool ser) {
   // buffer[0] = (active?activeChar:(selected?selectChar:idleChar));
   // p = 1;
   PRINT(
-    "%c%2d. ",
+    "%c%2d ",
     (active?activeChar:(selected?selectChar:idleChar)),
     idx+1);
 
@@ -190,6 +190,12 @@ void updateDisplay() {
         break;
       case MenuSelection::STEP_HOLD:
         step_hold_minutes += counter_delta;
+        break;
+      case MenuSelection::RELEASE:
+        release_time_minutes += counter_delta;
+        break;
+      case MenuSelection::LOSS_THRESH:
+        loss_threshold_psi += counter_delta;
         break;
       default:
         ser = false;
