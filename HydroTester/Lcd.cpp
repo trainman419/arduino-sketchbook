@@ -2,7 +2,12 @@
  * Serial-optimized LCD library.
  * Derived from https://github.com/sparkfun/SparkFun_SerLCD_Arduino_Library
  *
- * Modified by: Austin Hendrix 
+ * Modified by: Austin Hendrix
+ *
+ * Summary of modifications:
+ *  - Increase baud rate to 38400 baud during startup.
+ *  - Remove communication delays.
+ *  - Remove start/end transmission functions for I2C and SPI modes.
  */
 #include "Lcd.h"
 
@@ -12,13 +17,30 @@
  */
 void LCD::begin()
 {
+  // Initialize the serial port and display at default speed of 9600 baud.
+  _serialPort.begin(9600);
+
   transmit(SPECIAL_COMMAND);                      //Send special command character
   transmit(LCD_DISPLAYCONTROL | _displayControl); //Send the display command
   transmit(SPECIAL_COMMAND);                      //Send special command character
   transmit(LCD_ENTRYMODESET | _displayMode);      //Send the entry mode command
   transmit(SETTING_COMMAND);                      //Put LCD into setting mode
   transmit(CLEAR_COMMAND);                        //Send clear display command
-  // delay(50);                                      //let things settle a bit
+  delay(50);                                      //let things settle a bit
+
+  // Increase serial port speed.
+  command(0x10);
+  delay(10);
+  _serialPort.begin(38400);
+
+  // Run the init sequence again, in case the display was already at 38400 baud.
+  transmit(SPECIAL_COMMAND);                      //Send special command character
+  transmit(LCD_DISPLAYCONTROL | _displayControl); //Send the display command
+  transmit(SPECIAL_COMMAND);                      //Send special command character
+  transmit(LCD_ENTRYMODESET | _displayMode);      //Send the entry mode command
+  transmit(SETTING_COMMAND);                      //Put LCD into setting mode
+  transmit(CLEAR_COMMAND);                        //Send clear display command
+  delay(50);                                      //let things settle a bit
 } //init
 
 /*
@@ -55,15 +77,15 @@ void LCD::specialCommand(byte command)
  * byte command to send
  * byte count number of times to send
  */
-void LCD::specialCommand(byte command, byte count)
-{
-  for (int i = 0; i < count; i++)
-  {
-    transmit(SPECIAL_COMMAND); //Send special command character
-    transmit(command);         //Send command code
-  }                            // for
-  //delay(50); //Wait a bit longer for special display commands
-}
+// void LCD::specialCommand(byte command, byte count)
+// {
+//   for (int i = 0; i < count; i++)
+//   {
+//     transmit(SPECIAL_COMMAND); //Send special command character
+//     transmit(command);         //Send command code
+//   }                            // for
+//   //delay(50); //Wait a bit longer for special display commands
+// }
 
 /*
  * Send the clear command to the display.  This clears the

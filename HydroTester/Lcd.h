@@ -8,7 +8,7 @@
 #pragma once
 
 #include <Arduino.h>
-#include <Stream.h>
+#include <SoftwareSerial.h>
 
 #define DISPLAY_ADDRESS1 0x72 //This is the default address of the OpenLCD
 #define MAX_ROWS 4
@@ -58,7 +58,7 @@
 
 class LCD /* : public Print */ {
   public:
-    LCD(Stream &port) : _serialPort(port) {}
+    LCD(SoftwareSerial &port) : _serialPort(port) {}
 
     /*
      * Initialize the display
@@ -88,7 +88,7 @@ class LCD /* : public Print */ {
      * byte command to send
      * byte count number of times to send
      */
-    void specialCommand(byte command, byte count);
+    // void specialCommand(byte command, byte count);
 
     /*
     * Send the clear command to the display.  This clears the
@@ -129,7 +129,7 @@ class LCD /* : public Print */ {
       _serialPort.write(data);
     }
     
-    Stream &_serialPort;
+    SoftwareSerial &_serialPort;
     byte _displayControl = LCD_DISPLAYON | LCD_CURSOROFF | LCD_BLINKOFF;
 	  byte _displayMode = LCD_ENTRYLEFT | LCD_ENTRYSHIFTDECREMENT;
 

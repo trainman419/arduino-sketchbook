@@ -98,8 +98,6 @@ void updateDisplay() {
   char buffer[20];
 
   digitalWrite(13, HIGH);
-  //lcd.transmit(SPECIAL_COMMAND); //Send special command character
-  //lcd.transmit(command);         //Send the command code
   lcd.home();
   lcd.setCursor(0, 0);
   digitalWrite(13, LOW);
@@ -123,7 +121,6 @@ void updateDisplay() {
   digitalWrite(13, HIGH);
   lcd.write(buffer);
   digitalWrite(13, LOW);
-
 }
 
 void setup() {
@@ -135,12 +132,7 @@ void setup() {
   // Set up encoder interrupt.
   attachInterrupt(digitalPinToInterrupt(CLK_PIN), ISR_encoderChange, RISING);
 
-
-  LCD_port.begin(9600);
-
   lcd.begin();
-  lcd.command(0x10);
-  LCD_port.begin(38400);
   updateDisplay();
 
   printerPort.begin(9600);
@@ -157,17 +149,14 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
   digitalWrite(13, HIGH);
-  delay(150);
+  delay(25);
   digitalWrite(13, LOW);
-  //delay(100);
-  updateDisplay();
-  /*
-  digitalWrite(13, 0);
-  delay(5);
-  digitalWrite(13, 1);
-  */
 
-  t += 300;
+  updateDisplay();
+
+  t += 50;
   unsigned long dt = t - millis();
-  delay(dt);
+  if (dt < 25) {
+    delay(dt);
+  }
 }
