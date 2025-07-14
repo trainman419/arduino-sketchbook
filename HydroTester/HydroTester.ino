@@ -5,6 +5,34 @@
 #include "Lcd.h"
 
 
+#define MENU_ITEMS 11
+
+  // Menu:
+  //  1. Start
+  //  2. Max Psi
+  //  3. Max hold time
+  //  4. Step psi
+  //  5. Step hold time
+  //  6. Release time
+  //  7. Loss threshold
+  //  8. Manual fill
+  //  9. Manual bleed
+  //  10. Manual pump
+  //  11. Self test
+enum MenuSelection : uint8_t {
+  START = 0,
+  MAX = 1,
+  MAX_HOLD = 2,
+  STEP = 3,
+  STEP_HOLD = 4,
+  RELEASE = 5,
+  LOSS_THRESH = 6,
+  MANUAL_FILL = 7,
+  MANUAL_BLEED = 8,
+  MANUAL_PUMP = 9,
+  SELF_TEST = 10
+};
+
 SoftwareSerial LCD_port(20, 4);
 LCD lcd(LCD_port);
 
@@ -17,63 +45,14 @@ double loss_threshold_psi = 1.0f;
 double test_pressure_psi = 100.0f;
 uint16_t release_time_minutes = 60;
 
-// Other UI options.
-//  Manual fill
-//  Manual valve and pump actuation
-//  Self test - ramp to max pressure, hold. Built-in pressure loss threshold.
-
 // Encoder handling
 #define CLK_PIN 3
 #define DT_PIN 2
-#define DIRECTION_CW 0   // clockwise direction
-#define DIRECTION_CCW 1  // counter-clockwise direction
+#define BUTTON_PIN 7
 
 volatile int8_t counter = 0;
 volatile unsigned long last_time = 0;  // for debouncing
 unsigned long t = 0;
-
-enum class MenuSelection {
-  STEP,
-  HOLD,
-  MAX,
-  RELEASE
-};
-
-MenuSelection selection = MenuSelection::STEP;
-
-void incrementSelection() {
-    switch (selection) {
-      case MenuSelection::STEP:
-        selection = MenuSelection::HOLD;
-        break;
-      case MenuSelection::HOLD:
-        selection = MenuSelection::MAX;
-        break;
-      case MenuSelection::MAX:
-        selection = MenuSelection::RELEASE;
-        break;
-      case MenuSelection::RELEASE:
-        selection = MenuSelection::STEP;
-        break;
-    }
-}
-
-void decrementSelection() {
-      switch (selection) {
-      case MenuSelection::STEP:
-        selection = MenuSelection::RELEASE;
-        break;
-      case MenuSelection::HOLD:
-        selection = MenuSelection::STEP;
-        break;
-      case MenuSelection::MAX:
-        selection = MenuSelection::HOLD;
-        break;
-      case MenuSelection::RELEASE:
-        selection = MenuSelection::MAX;
-        break;
-    }
-}
 
 void ISR_encoderChange() {
   if ((millis() - last_time) < 50)  // debounce time is 50ms
@@ -82,45 +61,124 @@ void ISR_encoderChange() {
   if (digitalRead(DT_PIN) == HIGH) {
     // the encoder is rotating in counter-clockwise direction => decrease the counter
     counter--;
-    decrementSelection();
   } else {
     // the encoder is rotating in clockwise direction => increase the counter
     counter++;
-    incrementSelection();
   }
 
   last_time = millis();
 }
 
-void updateDisplay() {
+void menuLine(MenuSelection m, bool selected, bool active) {
+  constexpr char activeChar = '*';
   constexpr char selectChar = '>';
   constexpr char idleChar = ' ';
-  char buffer[20];
+  constexpr int bufferSize = 16;
+  char buffer[bufferSize+1];
+  const int8_t idx = (int8_t)m;
+  int p = 0;
+
+  // Menu:
+  //  1. Start
+  //  2. Max Psi
+  //  3. Max hold time
+  //  4. Step psi
+  //  5. Step hold time
+  //  6. Release time
+  //  7. Loss threshold
+  //  8. Manual fill
+  //  9. Manual bleed
+  //  10. Manual pump
+  //  11. Self test
+  // buffer[0] = (active?activeChar:(selected?selectChar:idleChar));
+  // p = 1;
+  p = snprintf(buffer, bufferSize,
+    "%c%2d. ",
+    (active?activeChar:(selected?selectChar:idleChar)),
+    idx+1);
+
+  switch (m) {
+    case MenuSelection::START:
+      p += snprintf(buffer+p, bufferSize-p, "Start");
+      break;
+    case MenuSelection::MAX:
+      p += snprintf(buffer+p, bufferSize-p, "Max %3d",
+      (int)test_pressure_psi);
+      break;
+    case MenuSelection::MAX_HOLD:
+      p += snprintf(buffer+p, bufferSize-p, "Max hold %3d",
+      (int)test_pressure_psi);
+      break;
+    case MenuSelection::STEP:
+      p += snprintf(buffer+p, bufferSize-p, "Step %2d",
+      (int)step_psi);
+      break;
+    case MenuSelection::STEP_HOLD:
+      p += snprintf(buffer+p, bufferSize-p, "Step hold %2d",
+      step_hold_minutes);
+      break;
+    case MenuSelection::RELEASE:
+      p += snprintf(buffer+p, bufferSize-p, "Release %3d",
+      release_time_minutes);
+      break;
+    default:
+      break;
+  }
+  // Fill remainder of buffer with spaces to clear display.
+  for (; p<bufferSize; p++) {
+    buffer[p] = ' ';
+  }
+
+  digitalWrite(13, HIGH);
+  lcd.write(buffer);
+  digitalWrite(13, LOW);
+}
+
+void updateDisplay() {
+  static int8_t last_counter = 0;
+  static int8_t last_button = 0;
+  static MenuSelection selection = MenuSelection::START;
+  bool active = false;
+
+  int8_t button = !digitalRead(BUTTON_PIN);
+  // Snapshot selection state so it doesn't change while we're drawing the display.
+  // const MenuSelection selection = ::selection;
+
+  // Update menu selection.
+  int8_t counter_delta = counter - last_counter;
+  last_counter = counter;
+
+  if (button) {
+    if (button != last_button) {
+      active = !active;
+    }
+  }
+  last_button = button;
+
+  if (active) {
+    switch (selection) {
+      case MenuSelection::STEP:
+        step_psi += counter_delta;
+        break;
+      default:
+        break;
+    }
+  } else {
+    selection = static_cast<MenuSelection>((selection + counter_delta) % MENU_ITEMS);
+  }
 
   digitalWrite(13, HIGH);
   lcd.home();
   lcd.setCursor(0, 0);
   digitalWrite(13, LOW);
 
-  snprintf(buffer, 17, "%cStep %2d%cHold %2d",
-    (selection==MenuSelection::STEP)?selectChar:idleChar,
-    (int)step_psi,
-    (selection==MenuSelection::HOLD)?selectChar:idleChar,
-    step_hold_minutes);
-
-  digitalWrite(13, HIGH);
-  lcd.write(buffer);
-  digitalWrite(13, LOW);
-
-  snprintf(buffer, 17, "%cMax %3d%cRelease %3d",
-    (selection==MenuSelection::MAX)?selectChar:idleChar,
-    (int)test_pressure_psi,
-    (selection==MenuSelection::RELEASE)?selectChar:idleChar,
-    release_time_minutes);
-
-  digitalWrite(13, HIGH);
-  lcd.write(buffer);
-  digitalWrite(13, LOW);
+  if (selection < (MENU_ITEMS-1)) {
+    menuLine(selection, true, active);
+    menuLine(static_cast<MenuSelection>(selection+1), false, false);
+  } else {
+    menuLine(static_cast<MenuSelection>(selection-1), false, false);
+    menuLine(selection, true, active);
+  }
 }
 
 void setup() {
@@ -129,6 +187,7 @@ void setup() {
   // Configure encoder pins as inputs.
   pinMode(CLK_PIN, INPUT_PULLUP);
   pinMode(DT_PIN, INPUT_PULLUP);
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
   // Set up encoder interrupt.
   attachInterrupt(digitalPinToInterrupt(CLK_PIN), ISR_encoderChange, RISING);
 
