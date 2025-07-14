@@ -1,11 +1,12 @@
 #include <SoftwareSerial.h>
 #include <Adafruit_Thermal.h>
-#include <SerLCD.h>
 #include <DualVNH5019MotorShield.h>
+
+#include "Lcd.h"
 
 
 SoftwareSerial LCD_port(20, 4);
-SerLCD lcd;
+LCD lcd(LCD_port);
 
 SoftwareSerial printerPort(18, 17);
 Adafruit_Thermal printer(&printerPort);
@@ -28,7 +29,8 @@ uint16_t release_time_minutes = 60;
 #define DIRECTION_CCW 1  // counter-clockwise direction
 
 volatile int8_t counter = 0;
-volatile unsigned long last_time;  // for debouncing
+volatile unsigned long last_time = 0;  // for debouncing
+unsigned long t = 0;
 
 enum class MenuSelection {
   STEP,
@@ -91,21 +93,37 @@ void ISR_encoderChange() {
 }
 
 void updateDisplay() {
+  constexpr char selectChar = '>';
+  constexpr char idleChar = ' ';
   char buffer[20];
+
+  digitalWrite(13, HIGH);
+  //lcd.transmit(SPECIAL_COMMAND); //Send special command character
+  //lcd.transmit(command);         //Send the command code
   lcd.home();
   lcd.setCursor(0, 0);
-  snprintf(buffer, 17, "%cStep % 2d %cHold % 2d", 
-    (selection==MenuSelection::STEP)?'*':' ',
+  digitalWrite(13, LOW);
+
+  snprintf(buffer, 17, "%cStep %2d%cHold %2d",
+    (selection==MenuSelection::STEP)?selectChar:idleChar,
     (int)step_psi,
-    (selection==MenuSelection::HOLD)?'*':' ',
+    (selection==MenuSelection::HOLD)?selectChar:idleChar,
     step_hold_minutes);
-  lcd.print(buffer);
-  snprintf(buffer, 17, "%cMax % 3d %cRelease % 3d",
-    (selection==MenuSelection::MAX)?'*':' ',
+
+  digitalWrite(13, HIGH);
+  lcd.write(buffer);
+  digitalWrite(13, LOW);
+
+  snprintf(buffer, 17, "%cMax %3d%cRelease %3d",
+    (selection==MenuSelection::MAX)?selectChar:idleChar,
     (int)test_pressure_psi,
-    (selection==MenuSelection::RELEASE)?'*':' ',
+    (selection==MenuSelection::RELEASE)?selectChar:idleChar,
     release_time_minutes);
-  lcd.print(buffer);
+
+  digitalWrite(13, HIGH);
+  lcd.write(buffer);
+  digitalWrite(13, LOW);
+
 }
 
 void setup() {
@@ -120,7 +138,7 @@ void setup() {
 
   LCD_port.begin(9600);
 
-  lcd.begin(LCD_port);
+  lcd.begin();
   lcd.command(0x10);
   LCD_port.begin(38400);
   updateDisplay();
@@ -133,13 +151,23 @@ void setup() {
 
   // Print the 75x75 pixel logo in adalogo.h:
   //printer.printBitmap(adalogo_width, adalogo_height, adalogo_data);
+  t = millis();
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
-  digitalWrite(13, 0);
-  delay(500);
-  digitalWrite(13, 1);
-  delay(500);
+  digitalWrite(13, HIGH);
+  delay(150);
+  digitalWrite(13, LOW);
+  //delay(100);
   updateDisplay();
+  /*
+  digitalWrite(13, 0);
+  delay(5);
+  digitalWrite(13, 1);
+  */
+
+  t += 300;
+  unsigned long dt = t - millis();
+  delay(dt);
 }
