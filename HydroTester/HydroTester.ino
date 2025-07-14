@@ -181,21 +181,27 @@ void updateDisplay() {
     switch (selection) {
       case MenuSelection::MAX:
         test_pressure_psi += counter_delta;
+        test_pressure_psi = constrain(test_pressure_psi, 5.0f, 300.0f);
         break;
       case MenuSelection::MAX_HOLD:
         test_hold_minutes += counter_delta;
+        test_hold_minutes = constrain(test_hold_minutes, 1, 120);
         break;
       case MenuSelection::STEP:
         step_psi += counter_delta;
+        step_psi = constrain(step_psi, 1, 10);
         break;
       case MenuSelection::STEP_HOLD:
         step_hold_minutes += counter_delta;
+        step_hold_minutes = constrain(step_hold_minutes, 1, 30);
         break;
       case MenuSelection::RELEASE:
         release_time_minutes += counter_delta;
+        release_time_minutes = constrain(release_time_minutes, 1, 300);
         break;
       case MenuSelection::LOSS_THRESH:
         loss_threshold_psi += counter_delta;
+        loss_threshold_psi = constrain(loss_threshold_psi, 1, 15);
         break;
       default:
         ser = false;
