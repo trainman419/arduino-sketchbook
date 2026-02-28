@@ -49,11 +49,13 @@ uint16_t step_hold_minutes = 5;
 float loss_threshold_psi = 1.0f;
 uint16_t release_time_minutes = 60;
 
-// Encoder handling
+// Pin definitions
 #define CLK_PIN 3
 #define DT_PIN 2
 #define BUZZER_PIN 5
 #define BUTTON_PIN 7
+#define FILL_SOLENOID_PIN 8
+#define DRAIN_SOLENOID_PIN 12
 
 volatile int8_t counter = 0;
 volatile unsigned long last_time = 0;  // for debouncing
@@ -167,6 +169,30 @@ void updateDisplay() {
 
   if (button && button != last_button) {
     active = !active;
+
+    if (active) {
+      switch (selection) {
+        case MenuSelection::MANUAL_FILL:
+          digitalWrite(FILL_SOLENOID_PIN, HIGH);
+          break;
+        case MenuSelection::MANUAL_BLEED:
+          digitalWrite(DRAIN_SOLENOID_PIN, HIGH);
+          break;
+        case MenuSelection::MANUAL_PUMP:
+          break;
+      }
+    } else {
+      switch (selection) {
+        case MenuSelection::MANUAL_FILL:
+          digitalWrite(FILL_SOLENOID_PIN, LOW);
+          break;
+        case MenuSelection::MANUAL_BLEED:
+          digitalWrite(DRAIN_SOLENOID_PIN, LOW);
+          break;
+        case MenuSelection::MANUAL_PUMP:
+          break;
+      }
+    }
   }
 
   last_button = button;
@@ -237,6 +263,11 @@ void setup() {
   pinMode(DT_PIN, INPUT_PULLUP);
   pinMode(BUTTON_PIN, INPUT_PULLUP);
   pinMode(BUZZER_PIN, OUTPUT);
+
+  digitalWrite(FILL_SOLENOID_PIN, LOW);
+  digitalWrite(DRAIN_SOLENOID_PIN, LOW);
+  pinMode(FILL_SOLENOID_PIN, OUTPUT);
+  pinMode(DRAIN_SOLENOID_PIN, OUTPUT);
   // Set up encoder interrupt.
   attachInterrupt(digitalPinToInterrupt(CLK_PIN), ISR_encoderChange, RISING);
 
