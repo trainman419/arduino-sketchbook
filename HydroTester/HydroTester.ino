@@ -5,6 +5,7 @@
 
 
 #include "Lcd.h"
+#include "Watchdog.h"
 
 
 #define MENU_ITEMS 11
@@ -41,7 +42,7 @@ LCD lcd(LCD_port);
 SoftwareSerial printerPort(18, 17);
 Adafruit_Thermal printer(&printerPort);
 
-float test_pressure_psi = 100.0f;
+float test_pressure_psi = 150.0f;
 uint16_t test_hold_minutes = 15;
 float step_psi = 10.0f;
 uint16_t step_hold_minutes = 5;
@@ -51,6 +52,7 @@ uint16_t release_time_minutes = 60;
 // Encoder handling
 #define CLK_PIN 3
 #define DT_PIN 2
+#define BUZZER_PIN 5
 #define BUTTON_PIN 7
 
 volatile int8_t counter = 0;
@@ -226,6 +228,7 @@ void updateDisplay() {
 }
 
 void setup() {
+  Watchdog::begin();
   Serial.begin(115200);
   pinMode(13, OUTPUT); // LED pin as output.
 
@@ -233,6 +236,7 @@ void setup() {
   pinMode(CLK_PIN, INPUT_PULLUP);
   pinMode(DT_PIN, INPUT_PULLUP);
   pinMode(BUTTON_PIN, INPUT_PULLUP);
+  pinMode(BUZZER_PIN, OUTPUT);
   // Set up encoder interrupt.
   attachInterrupt(digitalPinToInterrupt(CLK_PIN), ISR_encoderChange, RISING);
 
@@ -241,6 +245,8 @@ void setup() {
 
   printerPort.begin(9600);
   printer.begin();
+
+  tone(BUZZER_PIN, 440, 500);
 
   // Works, but don't use all the paper ;)
   //printer.println("Hello World");
@@ -252,6 +258,7 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
+  Watchdog::tick();
   digitalWrite(13, HIGH);
   delay(25);
   digitalWrite(13, LOW);
