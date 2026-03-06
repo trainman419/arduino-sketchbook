@@ -30,10 +30,11 @@ enum MenuSelection : uint8_t {
   STEP_HOLD = 4,
   RELEASE = 5,
   LOSS_THRESH = 6,
-  MANUAL_FILL = 7,
-  MANUAL_BLEED = 8,
-  MANUAL_PUMP = 9,
-  SELF_TEST = 10
+  FILL = 7,
+  MANUAL_FILL = 8,
+  MANUAL_BLEED = 9,
+  MANUAL_PUMP = 10,
+  SELF_TEST = 11
 };
 
 SoftwareSerial LCD_port(20, 4);
@@ -137,6 +138,9 @@ void menuLine(MenuSelection m, bool selected, bool active, bool ser) {
     case MenuSelection::LOSS_THRESH:
       PRINT("Threshold %d", (int)loss_threshold_psi);
       break;
+    case MenuSelection::FILL:
+      PRINT("Fill");
+      break;
     case MenuSelection::MANUAL_FILL:
       PRINT("Manual Fill");
       break;
@@ -179,6 +183,10 @@ void updateDisplay() {
 
     if (active) {
       switch (selection) {
+        case MenuSelection::FILL:
+          digitalWrite(FILL_SOLENOID_PIN, HIGH);
+          motor.rotate(255, TomIBT2::CW);
+          break;
         case MenuSelection::MANUAL_FILL:
           digitalWrite(FILL_SOLENOID_PIN, HIGH);
           break;
@@ -191,6 +199,10 @@ void updateDisplay() {
       }
     } else {
       switch (selection) {
+        case MenuSelection::FILL:
+          digitalWrite(FILL_SOLENOID_PIN, LOW);
+          motor.stop();
+          break;
         case MenuSelection::MANUAL_FILL:
           digitalWrite(FILL_SOLENOID_PIN, LOW);
           break;
