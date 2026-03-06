@@ -1,7 +1,7 @@
+#include <TomIBT2.h>
 #include <ezButton.h>
 #include <SoftwareSerial.h>
 #include <Adafruit_Thermal.h>
-#include <DualVNH5019MotorShield.h>
 
 
 #include "Lcd.h"
@@ -57,9 +57,16 @@ uint16_t release_time_minutes = 60;
 #define FILL_SOLENOID_PIN 8
 #define DRAIN_SOLENOID_PIN 12
 
+#define MOTOR_PIN_R_EN 6
+#define MOTOR_PIN_L_EN 6
+#define MOTOR_PIN_RPWM 9
+#define MOTOR_PIN_LPWM 10
+
 volatile int8_t counter = 0;
 volatile unsigned long last_time = 0;  // for debouncing
 unsigned long t = 0;
+
+TomIBT2 motor(MOTOR_PIN_R_EN, MOTOR_PIN_L_EN, MOTOR_PIN_RPWM, MOTOR_PIN_LPWM);
 
 void ISR_encoderChange() {
   if ((millis() - last_time) < 50)  // debounce time is 50ms
@@ -179,6 +186,7 @@ void updateDisplay() {
           digitalWrite(DRAIN_SOLENOID_PIN, HIGH);
           break;
         case MenuSelection::MANUAL_PUMP:
+          motor.rotate(255, TomIBT2::CW);
           break;
       }
     } else {
@@ -190,6 +198,7 @@ void updateDisplay() {
           digitalWrite(DRAIN_SOLENOID_PIN, LOW);
           break;
         case MenuSelection::MANUAL_PUMP:
+          motor.stop();
           break;
       }
     }
@@ -268,6 +277,9 @@ void setup() {
   digitalWrite(DRAIN_SOLENOID_PIN, LOW);
   pinMode(FILL_SOLENOID_PIN, OUTPUT);
   pinMode(DRAIN_SOLENOID_PIN, OUTPUT);
+
+  motor.begin();
+
   // Set up encoder interrupt.
   attachInterrupt(digitalPinToInterrupt(CLK_PIN), ISR_encoderChange, RISING);
 
