@@ -1,4 +1,5 @@
 #include <FlexCAN_T4.h>
+#include <stdint.h>
 
 #include "BMS_CAN_Dictionary.h"
 
@@ -75,6 +76,8 @@ void canCallback(const CAN_message_t &message) {
   }
 }
 
+// Set the ERPM (pole-pairs/sec) of the motor.
+// Our motor has 7 pole-pairs, so this should be 7x the desired motor RPM.
 void commandMotorRpm(int rpm){
   uint8_t* rpm_buf = reinterpret_cast<uint8_t*>(&rpm);
   const int RPM_CAN_ID{0};
@@ -96,6 +99,32 @@ void commandMotorRpm(int rpm){
   motorCan.write(rpm_message);
 }
 
+// Set the duty cycle of the motor.
+void commandMotorDutyCycle(float rpm){
+  union {
+    int32_t value;
+    int8_t buf[4];
+  } duty;
+  duty.value = static_cast<int32_t>(rpm * 100000.0f);
+  const int RPM_CAN_ID{0};
+  const int SSR{0};
+  const int FRAME_TYPE{0};
+  const int COMMAND_SET_DUTY{0};
+  const int MOTOR_ID{0xC};
+  CAN_message_t duty_message;
+  duty_message.id = (RPM_CAN_ID << 18) | (SSR << 17) | (FRAME_TYPE << 18) | (COMMAND_SET_DUTY << 8) | MOTOR_ID;
+  duty_message.flags.extended = 1;
+  duty_message.flags.remote = 0;
+  duty_message.flags.overrun = 0;
+  duty_message.flags.reserved = 0;
+  duty_message.len = 4;
+  duty_message.buf[0] = duty.buf[3];
+  duty_message.buf[1] = duty.buf[2];
+  duty_message.buf[2] = duty.buf[1];
+  duty_message.buf[3] = duty.buf[0];
+  motorCan.write(duty_message);
+}
+
 int loop_counter{ 0 };
 void loop() {
   digitalWrite(LOOP_LED_PIN, HIGH);
@@ -110,7 +139,8 @@ void loop() {
   test_message.buf[3] = 0xCA;
   test_message.buf[4] = 0xFE;
   motorCan.write(test_message);
-  commandMotorRpm(1200); // 10 gives actual ERPM of 37278
+  //commandMotorRpm(1200);
+  commandMotorDutyCycle(0.05);
 
   /*if(motorCan.read(test_message)){
     Serial.printf("Read a message manually\n");
