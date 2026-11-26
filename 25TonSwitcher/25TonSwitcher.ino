@@ -89,10 +89,10 @@ void commandMotorRpm(int rpm){
   rpm_message.flags.overrun = 0;
   rpm_message.flags.reserved = 0;
   rpm_message.len = 4;
-  rpm_message.buf[0] = rpm_buf[0];
-  rpm_message.buf[1] = rpm_buf[1];
-  rpm_message.buf[2] = rpm_buf[2];
-  rpm_message.buf[3] = rpm_buf[3];
+  rpm_message.buf[0] = rpm_buf[3];
+  rpm_message.buf[1] = rpm_buf[2];
+  rpm_message.buf[2] = rpm_buf[1];
+  rpm_message.buf[3] = rpm_buf[0];
   motorCan.write(rpm_message);
 }
 
@@ -110,7 +110,7 @@ void loop() {
   test_message.buf[3] = 0xCA;
   test_message.buf[4] = 0xFE;
   motorCan.write(test_message);
-  commandMotorRpm(10);
+  commandMotorRpm(1200); // 10 gives actual ERPM of 37278
 
   /*if(motorCan.read(test_message)){
     Serial.printf("Read a message manually\n");
